@@ -22,7 +22,7 @@ L.Control.Search = L.Control.extend({
 		//TODO implements uniq option 'sourceData' that recognizes source type: url,array,callback or layer				
 		jsonpParam: null,				//jsonp param name for search by jsonp service, ex: "callback"
 		propertyLoc: 'loc',				//field for remapping location, using array: ['latname','lonname'] for select double fields(ex. ['lat','lon'] ) support dotted format: 'prop.subprop.title'
-		propertyName: 'title',			//property in marker.options(or feature.properties for vector layer) trough filter elements in layer,
+		propertyName: 'title',			//property in marker.options(or feature.properties for vector layer) trough filter elements in layer, can also used to search multiple fields by using an array(ex. ['HouseNumber','Street','Zip'])
 		formatData: null,				//callback for reformat all data from source to indexed data object
 		filterData: null,				//callback for filtering data from text searched, params: textSearch, allRecords
 		moveToLocation: null,			//callback run on location found, params: latlng, title, map
@@ -483,23 +483,35 @@ L.Control.Search = L.Control.extend({
 			loc;
 		
 		this._layer.eachLayer(function(layer) {
+			var propString = [],
+				n = 0;
 
 			if(layer instanceof L.Control.Search.Marker) return;
 
 			if(layer instanceof L.Marker || layer instanceof L.CircleMarker)
 			{
-				if(that._getPath(layer.options,propName))
+				while(that._getPath( layer.options, propName[n] ) == that._getPath( layer.feature.properties, propName[n] ) ) {
+					n++;
+					if ( n >= propName.length ) {
+						throw new Error("propertyName '" + propName +"' not found in marker", layer);
+						break;
+					}
+				}
+				if(that._getPath(layer.options,propName[n]))
 				{
 					loc = layer.getLatLng();
 					loc.layer = layer;
 					retRecords[ that._getPath(layer.options,propName) ] = loc;			
 					
 				}
-				else if(that._getPath(layer.feature.properties,propName)){
+				else if(that._getPath(layer.feature.properties,propName[n])){
 
 					loc = layer.getLatLng();
 					loc.layer = layer;
-					retRecords[ that._getPath(layer.feature.properties,propName) ] = loc;
+					for (var i = 0; i< propName.length; i++) {
+						propString.push(that._getPath(layer.feature.properties, propName[i]).replace(",",""));
+					}
+					retRecords[ that.parseFields(propString.join(", "))] = loc;
 					
 				}
 				else
@@ -529,6 +541,15 @@ L.Control.Search = L.Control.extend({
 		},this);
 		
 		return retRecords;
+	},
+	
+	_parseFields: function(s) {
+		var t = [],
+		title,body;
+		t = s.split(", ")
+		title = (t[0].replace("NULL","")+"; "+t[1].replace("NULL","")+"; ");
+		body = t.splice(2).join(" ").replace("NULL","");
+		return title+body;
 	},
 
 	_autoType: function() {
