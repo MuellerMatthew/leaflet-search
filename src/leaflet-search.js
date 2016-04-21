@@ -512,7 +512,7 @@ L.Control.Search = L.Control.extend({
 					for (var i = 0; i< propName.length; i++) {
 						propString.push(that._getPath(layer.feature.properties, propName[i]).replace(",",""));
 					}
-					retRecords[ that.parseFields(propString.join(", "))] = loc;
+					retRecords[ that._parseFields(propString.join(", "))] = loc;
 					
 				}
 				else
